@@ -83,7 +83,7 @@ const ArivomAinthu = () => {
             
             setEditMode(false);
             setCurrentContestId(null);
-            fetchContestList();
+            await fetchContestList();
         } catch (error) {
             console.error('Error processing contest: ', error);
         } finally {
