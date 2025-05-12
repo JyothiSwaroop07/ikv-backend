@@ -246,19 +246,19 @@ const ArivomAinthu = () => {
                             onChange={handleChange}
                             placeholder="https://drive.google.com/uc?id=XXXX or any hosted image URL"
                         />
-                        {formData.resultImageUrl && (
+                        {/* {formData.resultImageUrl && (
                             <div className="mt-2">
                                 <p className="text-sm text-gray-600">Preview:</p>
-                                <Image
-                            src={convertDriveLink(form.resultImageUrl)}
-                            alt={`Results for ${form.thodarName || 'Contest'} Part ${form.partNumber || ''}`}
+                                <img
+                            src={convertDriveLink(formData.resultImageUrl)}
+                            alt={`Results for ${formData.thodarName || 'Contest'} Part ${formData.partNumber || ''}`}
                             width={300}
                             height={350}
                             className="rounded-lg shadow-lg"
                             onError={(e) => { e.target.onerror = null; e.target.src = "fallback-image-url"; }}
               />
                             </div>
-                        )}
+                        )} */}
                     </div>
 
                     <div className="pt-4">
