@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import { collection, addDoc, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebase';
+import { db } from '../../firebase';
 import { useRouter } from "next/router";
 
 const ArivomAinthu = () => {
@@ -10,86 +8,14 @@ const ArivomAinthu = () => {
         thodarName: '',
         partNumber: '',
         formLink: '',
-        resultImage: null,
         resultImageUrl: '',
-        date: new Date().toISOString().split('T')[0] // Default to today's date
+        date: new Date().toISOString().split('T')[0]
     });
     const [contestList, setContestList] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [currentContestId, setCurrentContestId] = useState(null);
-    
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
-    };
-
-    const handleFileChange = (e) => {
-        if (e.target.files[0]) {
-            setFormData({...formData, resultImage: e.target.files[0]});
-        }
-    };
-    
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsUploading(true);
-        
-        try {
-            // Process form link to ensure embed=true parameter
-            const formLink = formData.formLink.includes('?') 
-                ? `${formData.formLink.split('?')[0]}?embed=true`
-                : `${formData.formLink}?embed=true`;
-
-            let resultImageUrl = formData.resultImageUrl;
-            
-            // Upload new image if provided
-            if (formData.resultImage) {
-                const storageRef = ref(storage, `contest-results/${formData.thodarName}-part-${formData.partNumber}`);
-                await uploadBytes(storageRef, formData.resultImage);
-                resultImageUrl = await getDownloadURL(storageRef);
-            }
-
-            const contestData = {
-                thodarName: formData.thodarName,
-                partNumber: formData.partNumber,
-                formLink: formLink,
-                resultImageUrl: resultImageUrl,
-                date: formData.date,
-                createdAt: new Date().toISOString()
-            };
-
-            if (editMode && currentContestId) {
-                // Update existing contest
-                await updateDoc(doc(db, 'WeeklyContest', currentContestId), {
-                    contestDetails: contestData
-                });
-            } else {
-                // Add new contest
-                const contestRef = collection(db, 'WeeklyContest');
-                await addDoc(contestRef, {
-                    contestDetails: contestData
-                });
-            }
-
-            // Reset form after successful submission
-            setFormData({
-                thodarName: '',
-                partNumber: '',
-                formLink: '',
-                resultImage: null,
-                resultImageUrl: '',
-                date: new Date().toISOString().split('T')[0]
-            });
-            
-            setEditMode(false);
-            setCurrentContestId(null);
-            fetchContestList();
-        } catch (error) {
-            console.error('Error processing contest: ', error);
-        } finally {
-            setIsUploading(false);
-        }
-    };
+    const [uploadError, setUploadError] = useState(null);
 
     const router = useRouter();
 
@@ -97,34 +23,90 @@ const ArivomAinthu = () => {
         router.push("/");
     };
 
+      // Function to convert Google Drive link to direct URL
+ const convertDriveLink = (url) => {
+    const isDriveLink = url.includes('drive.google.com');
+    if (isDriveLink) {
+        let fileIdMatch = url.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]+)/);
+        const fileId = fileIdMatch?.[1];
+        if (fileId) {
+            return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+    }
+    return url;
+};
+
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsUploading(true);
+        setUploadError(null);
+
+        try {
+            const formLink = formData.formLink.includes('?') 
+                ? `${formData.formLink.split('?')[0]}?embed=true`
+                : `${formData.formLink}?embed=true`;
+
+            const contestData = {
+                thodarName: formData.thodarName,
+                partNumber: formData.partNumber,
+                formLink,
+                resultImageUrl: formData.resultImageUrl,
+                date: formData.date,
+                createdAt: new Date().toISOString()
+            };
+
+            if (editMode && currentContestId) {
+                await updateDoc(doc(db, 'WeeklyContest', currentContestId), {
+                    contestDetails: contestData
+                });
+            } else {
+                const contestRef = collection(db, 'WeeklyContest');
+                await addDoc(contestRef, {
+                    contestDetails: contestData
+                });
+            }
+
+            setFormData({
+                thodarName: '',
+                partNumber: '',
+                formLink: '',
+                resultImageUrl: '',
+                date: new Date().toISOString().split('T')[0]
+            });
+
+            setEditMode(false);
+            setCurrentContestId(null);
+            fetchContestList();
+        } catch (error) {
+            console.error('Error processing contest: ', error);
+            setUploadError('Error processing your request. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const fetchContestList = async () => {
         try {
             const contestRef = collection(db, 'WeeklyContest');
             const snapshot = await getDocs(contestRef);
-            
+
             const contests = snapshot.docs.map(doc => {
                 const data = doc.data();
-                // Check if contestDetails exists
                 if (data && data.contestDetails) {
-                    return { 
-                        id: doc.id, 
-                        ...data.contestDetails 
-                    };
+                    return { id: doc.id, ...data.contestDetails };
                 }
-                // Return a default object if contestDetails is missing
-                return {
-                    id: doc.id,
-                    thodarName: 'Unknown',
-                    partNumber: '0',
-                    date: 'N/A'
-                };
+                return { id: doc.id, thodarName: 'Unknown', partNumber: '0', date: 'N/A' };
             });
-            
-            // Sort with null checks
+
             contests.sort((a, b) => {
                 if (!a.thodarName) return 1;
                 if (!b.thodarName) return -1;
-                
                 if (a.thodarName === b.thodarName) {
                     const partA = a.partNumber ? parseInt(a.partNumber) : 0;
                     const partB = b.partNumber ? parseInt(b.partNumber) : 0;
@@ -132,7 +114,7 @@ const ArivomAinthu = () => {
                 }
                 return a.thodarName.localeCompare(b.thodarName);
             });
-            
+
             setContestList(contests);
         } catch (error) {
             console.error('Error fetching contest list:', error);
@@ -157,12 +139,11 @@ const ArivomAinthu = () => {
 
     const handleEdit = (contest) => {
         setFormData({
-            thodarName: contest.thodarName,
-            partNumber: contest.partNumber,
-            formLink: contest.formLink.replace('?embed=true', ''),
-            resultImage: null,
+            thodarName: contest.thodarName || '',
+            partNumber: contest.partNumber || '',
+            formLink: contest.formLink ? contest.formLink.replace('?embed=true', '') : '',
             resultImageUrl: contest.resultImageUrl || '',
-            date: contest.date
+            date: contest.date || new Date().toISOString().split('T')[0]
         });
         setEditMode(true);
         setCurrentContestId(contest.id);
@@ -170,18 +151,24 @@ const ArivomAinthu = () => {
 
     return (
         <div className="flex flex-col items-center min-h-screen bg-gray-50 p-4">
-            <button 
+            <button
                 className="self-start mt-4 ml-4 bg-blue-800 text-white text-md w-[145px] h-[45px] rounded-md hover:bg-blue-700 transition-colors"
                 onClick={handleBack}
             >
                 ← Go Back
             </button>
-      
+
             <div className="w-full max-w-4xl bg-white rounded-lg shadow-md p-6 my-6">
                 <h1 className="text-2xl font-bold text-center mb-6 text-[#2c5c2d]">
                     {editMode ? 'Edit Contest' : 'Create New Contest'}
                 </h1>
-                
+
+                {uploadError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <span className="block sm:inline">{uploadError}</span>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -197,7 +184,7 @@ const ArivomAinthu = () => {
                                 required
                             />
                         </div>
-                        
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Part Number (1-4):
@@ -214,7 +201,7 @@ const ArivomAinthu = () => {
                             />
                         </div>
                     </div>
-                    
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Contest Date:
@@ -228,7 +215,7 @@ const ArivomAinthu = () => {
                             required
                         />
                     </div>
-                    
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Google Form Link:
@@ -246,34 +233,34 @@ const ArivomAinthu = () => {
                             Note: The system will automatically add ?embed=true to the URL
                         </p>
                     </div>
-                    
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Result Image (Optional):
+                            Result Image URL (Optional):
                         </label>
                         <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-green-50 file:text-green-700
-                            hover:file:bg-green-100"
+                            type="url"
+                            name="resultImageUrl"
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            value={convertDriveLink(formData.resultImageUrl)}
+                            onChange={handleChange}
+                            placeholder="https://drive.google.com/uc?id=XXXX or any hosted image URL"
                         />
-                        {formData.resultImageUrl && !formData.resultImage && (
+                        {/* {formData.resultImageUrl && (
                             <div className="mt-2">
-                                <p className="text-sm text-gray-600">Current Image:</p>
-                                <img 
-                                    src={formData.resultImageUrl} 
-                                    alt="Current result" 
-                                    className="h-20 object-contain mt-1"
-                                />
+                                <p className="text-sm text-gray-600">Preview:</p>
+                                <img
+                            src={convertDriveLink(formData.resultImageUrl)}
+                            alt={`Results for ${formData.thodarName || 'Contest'} Part ${formData.partNumber || ''}`}
+                            width={300}
+                            height={350}
+                            className="rounded-lg shadow-lg"
+                            onError={(e) => { e.target.onerror = null; e.target.src = "fallback-image-url"; }}
+              />
                             </div>
-                        )}
+                        )} */}
                     </div>
-                    
+
                     <div className="pt-4">
                         <button
                             type="submit"
@@ -285,10 +272,10 @@ const ArivomAinthu = () => {
                     </div>
                 </form>
             </div>
-      
+
             <div className="w-full max-w-4xl bg-white rounded-lg shadow-md p-6 mb-10">
                 <h2 className="text-xl font-semibold mb-4 text-[#2c5c2d]">All Contests</h2>
-                
+
                 {contestList.length === 0 ? (
                     <p className="text-gray-500">No contests found</p>
                 ) : (
