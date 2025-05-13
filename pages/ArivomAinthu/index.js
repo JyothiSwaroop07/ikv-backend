@@ -22,6 +22,78 @@ const ArivomAinthu = () => {
     const handleBack = () => {
         router.push("/");
     };
+    // State for winner image logic
+        const [winnerImageUrl, setWinnerImageUrl] = useState('');
+        const [winnerImages, setWinnerImages] = useState([]);
+        const [isUploadingWinner, setIsUploadingWinner] = useState(false);
+        const [editWinnerId, setEditWinnerId] = useState(null);
+
+        // Upload or update winner image
+        const handleWinnerUpload = async (e) => {
+            e.preventDefault();
+            setIsUploadingWinner(true);
+
+            const imageUrl = convertDriveLink(winnerImageUrl);
+
+            try {
+                if (editWinnerId) {
+                    await updateDoc(doc(db, 'Winners', editWinnerId), {
+                        imageUrl,
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    await addDoc(collection(db, 'Winners'), {
+                        imageUrl,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+
+                setWinnerImageUrl('');
+                setEditWinnerId(null);
+                fetchWinnerImages();
+            } catch (err) {
+                console.error("Error uploading winner image:", err);
+            } finally {
+                setIsUploadingWinner(false);
+            }
+        };
+
+        // Fetch all winner images
+        const fetchWinnerImages = async () => {
+            try {
+                const snapshot = await getDocs(collection(db, 'Winners'));
+                const data = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    imageUrl: doc.data().imageUrl
+                }));
+                setWinnerImages(data);
+            } catch (err) {
+                console.error("Error fetching winner images:", err);
+            }
+        };
+
+        // Delete winner image
+        const handleWinnerDelete = async (id) => {
+            if (confirm("Delete this winner image?")) {
+                try {
+                    await deleteDoc(doc(db, 'Winners', id));
+                    fetchWinnerImages();
+                } catch (err) {
+                    console.error("Error deleting winner image:", err);
+                }
+            }
+        };
+
+        // Edit winner image
+        const handleWinnerEdit = (img) => {
+            setWinnerImageUrl(img.imageUrl);
+            setEditWinnerId(img.id);
+        };
+
+        useEffect(() => {
+            fetchWinnerImages();
+        }, []);
+
 
       // Function to convert Google Drive link to direct URL
  const convertDriveLink = (url) => {
@@ -322,6 +394,40 @@ const ArivomAinthu = () => {
                     </div>
                 )}
             </div>
+            <div className="w-full max-w-4xl bg-white rounded-lg shadow-md p-6 mb-10">
+                <h2 className="text-xl font-semibold text-[#2c5c2d] mb-4">Upload Winner Image</h2>
+
+                <form onSubmit={handleWinnerUpload} className="space-y-4">
+                    <input
+                        type="url"
+                        placeholder="Paste winner image URL"
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        value={winnerImageUrl}
+                        onChange={(e) => setWinnerImageUrl(e.target.value)}
+                        required
+                    />
+                    <button
+                        type="submit"
+                        disabled={isUploadingWinner}
+                        className={`w-full py-2 px-4 rounded-md text-white font-medium ${isUploadingWinner ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    >
+                        {editWinnerId ? 'Update Winner Image' : 'Upload Winner Image'}
+                    </button>
+                </form>
+
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {winnerImages.map((img) => (
+                        <div key={img.id} className="border p-2 rounded shadow">
+                            <img src={convertDriveLink(img.imageUrl)} alt="Winner" className="w-full h-auto rounded" />
+                            <div className="flex justify-between mt-2">
+                                <button onClick={() => handleWinnerEdit(img)} className="text-green-600 hover:underline">Edit</button>
+                                <button onClick={() => handleWinnerDelete(img.id)} className="text-red-600 hover:underline">Delete</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
         </div>
     );
 };
