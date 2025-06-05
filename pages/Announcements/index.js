@@ -4,7 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { toast, ToastContainer } from 'react-toastify'; // Import ToastContainer
 import 'react-toastify/dist/ReactToastify.css'; // Toastify CSS
 
-const Announcements = () => {
+const HomeAnnouncements = () => {
   // Set the initial state for the form data
   const [data, setData] = useState({
     link1: '',
@@ -166,4 +166,4 @@ const Announcements = () => {
   );
 };
 
-export default Announcements;
+export default HomeAnnouncements;

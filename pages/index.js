@@ -22,6 +22,7 @@ const Home = () => {
       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('Results')}>Results</button>
       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('ArivomAinthu')}>Arivom Ainthu</button>
       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('Sponsors')}>Sponsors</button>
+      <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('HomeAnnouncements')}>Home Announcements</button>
     </div>
   )
 }
