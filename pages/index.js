@@ -23,6 +23,7 @@ const Home = () => {
       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('ArivomAinthu')}>Arivom Ainthu</button>
       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('Sponsors')}>Sponsors</button>
       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('HomeAnnouncements')}>Home Announcements</button>
+       <button className="w-[145px] h-[45px] bg-green-700 text-white mb-5" onClick={() => route('districtlevel2025')}>District level Islamic competition 2025</button>
     </div>
   )
 }
